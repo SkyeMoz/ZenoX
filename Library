@@ -1,15 +1,15 @@
--- Full updated ZenoXHub script with toggle/outline logic (modified)
+-- ZenoXHub Library (full updated)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 
----
-
--- REMOVE OLD GUI (PREVENT DUPLICATE)
-
+--------------------------------------------------
+-- CLEANUP OLD GUI
+--------------------------------------------------
 if CoreGui:FindFirstChild("ZenoXHub") then
 	CoreGui.ZenoXHub:Destroy()
 end
@@ -18,16 +18,15 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "ZenoXHub"
 gui.Parent = CoreGui
 
----
-
--- FAVORITES SAVE SYSTEM
-
+--------------------------------------------------
+-- FAVORITES STORAGE
+--------------------------------------------------
 local favFile = "ZenoXHub_Favorites.json"
 local favorites = {}
 
 pcall(function()
 	if readfile and isfile and isfile(favFile) then
-		favorites = HttpService:JSONDecode(readfile(favFile))
+		favorites = HttpService:JSONDecode(readfile(favFile)) or {}
 	end
 end)
 
@@ -39,10 +38,9 @@ local function saveFavorites()
 	end)
 end
 
----
-
+--------------------------------------------------
 -- SOUNDS
-
+--------------------------------------------------
 local clickSound = Instance.new("Sound")
 clickSound.SoundId = "rbxassetid://535716488"
 clickSound.Volume = 1
@@ -57,13 +55,12 @@ local function playTypingSound()
 	local s = typingSoundTemplate:Clone()
 	s.Parent = gui
 	s:Play()
-	game:GetService("Debris"):AddItem(s,1)
+	Debris:AddItem(s, 1)
 end
 
----
-
--- TOGGLE BUTTON
-
+--------------------------------------------------
+-- TOGGLE / QUICK BUTTON (open GUI)
+--------------------------------------------------
 local toggle = Instance.new("ImageButton")
 toggle.Size = UDim2.new(0,60,0,60)
 toggle.Position = UDim2.new(0,20,0.5,-30)
@@ -71,20 +68,16 @@ toggle.Image = "rbxassetid://14598484193"
 toggle.BackgroundColor3 = Color3.fromRGB(0,0,0)
 toggle.BackgroundTransparency = 0.5
 toggle.Parent = gui
-Instance.new("UICorner",toggle).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(1,0)
 
----
-
--- HOLD 10s DELETE
-
+-- hold 10s to destroy GUI
 local holding = false
-
 toggle.MouseButton1Down:Connect(function()
 	holding = true
 	task.spawn(function()
 		local start = tick()
 		while holding do
-			if tick()-start >= 10 then
+			if tick() - start >= 10 then
 				gui:Destroy()
 				break
 			end
@@ -92,22 +85,19 @@ toggle.MouseButton1Down:Connect(function()
 		end
 	end)
 end)
-
 toggle.MouseButton1Up:Connect(function()
 	holding = false
 end)
 
----
-
--- MAIN GUI
-
+--------------------------------------------------
+-- MAIN FRAME
+--------------------------------------------------
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0,450,0,400)
 main.Position = UDim2.new(0.5,-225,0.5,-200)
 main.BackgroundColor3 = Color3.fromRGB(40,40,40)
-main.BackgroundTransparency = 0
 main.Parent = gui
-Instance.new("UICorner",main).CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
 
 local mainGradient = Instance.new("UIGradient")
 mainGradient.Color = ColorSequence.new{
@@ -123,10 +113,9 @@ toggle.MouseButton1Click:Connect(function()
 	main.Visible = not main.Visible
 end)
 
----
-
--- TITLE
-
+--------------------------------------------------
+-- TITLE + SEARCH
+--------------------------------------------------
 local title = Instance.new("TextLabel")
 title.Text = "ZenoX Menu"
 title.Size = UDim2.new(1,0,0,40)
@@ -135,10 +124,6 @@ title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 22
 title.Parent = main
-
----
-
--- SEARCH LABEL
 
 local searchLabel = Instance.new("TextLabel")
 searchLabel.Text = "Search"
@@ -151,10 +136,6 @@ searchLabel.TextSize = 12
 searchLabel.TextXAlignment = Enum.TextXAlignment.Left
 searchLabel.Parent = main
 
----
-
--- SEARCH BOX
-
 local search = Instance.new("TextBox")
 search.Size = UDim2.new(1,-20,0,30)
 search.Position = UDim2.new(0,10,0,55)
@@ -163,16 +144,15 @@ search.Text = ""
 search.BackgroundColor3 = Color3.fromRGB(35,35,35)
 search.TextColor3 = Color3.new(1,1,1)
 search.Parent = main
-Instance.new("UICorner",search).CornerRadius = UDim.new(0,6)
+Instance.new("UICorner", search).CornerRadius = UDim.new(0,6)
 
 search:GetPropertyChangedSignal("Text"):Connect(function()
 	playTypingSound()
 end)
 
----
-
+--------------------------------------------------
 -- TAB BAR
-
+--------------------------------------------------
 local tabScroll = Instance.new("ScrollingFrame")
 tabScroll.Size = UDim2.new(1,-20,0,35)
 tabScroll.Position = UDim2.new(0,10,0,90)
@@ -187,7 +167,6 @@ tabLayout.FillDirection = Enum.FillDirection.Horizontal
 tabLayout.Padding = UDim.new(0,5)
 tabLayout.Parent = tabScroll
 
--- overlay sits on top of the tabScroll area but is a sibling so UIListLayout won't include the highlight in layout
 local tabOverlay = Instance.new("Frame")
 tabOverlay.Size = tabScroll.Size
 tabOverlay.Position = tabScroll.Position
@@ -196,16 +175,12 @@ tabOverlay.Parent = main
 tabOverlay.ZIndex = 0
 tabScroll.ZIndex = 1
 
----
-
--- TAB HIGHLIGHT SLIDER (parented to overlay so layout doesn't reserve space)
-
 local highlight = Instance.new("Frame")
 highlight.Size = UDim2.new(0,110,1,0)
 highlight.BackgroundTransparency = 0
 highlight.Parent = tabOverlay
 highlight.ZIndex = 0
-Instance.new("UICorner",highlight)
+Instance.new("UICorner", highlight)
 
 local hGradient = Instance.new("UIGradient")
 hGradient.Color = ColorSequence.new{
@@ -214,17 +189,15 @@ hGradient.Color = ColorSequence.new{
 }
 hGradient.Parent = highlight
 
----
-
+--------------------------------------------------
 -- CONTENT HOLDER
-
+--------------------------------------------------
 local holder = Instance.new("Frame")
 holder.Size = UDim2.new(1,-20,1,-140)
 holder.Position = UDim2.new(0,10,0,125)
 holder.BackgroundTransparency = 1
 holder.Parent = main
 
--- EMPTY MENU TEXT
 local activeLabel = Instance.new("TextLabel")
 activeLabel.Size = UDim2.new(1,0,1,0)
 activeLabel.BackgroundTransparency = 1
@@ -236,16 +209,27 @@ activeLabel.TextXAlignment = Enum.TextXAlignment.Center
 activeLabel.TextYAlignment = Enum.TextYAlignment.Center
 activeLabel.Parent = holder
 
----
-
+--------------------------------------------------
 -- STORAGE
-
+--------------------------------------------------
 local ZenoXHub = {}
 local pages = {}
 local allSlots = {}
+local activeToggles = {} -- [name] = { cleanup = fn or nil, pulsing = bool }
 
--- ACTIVE TOGGLES (tracks running scripts + pulse)
-local activeToggles = {}
+-- helper: fetch script content (URL or inline)
+local function fetchScriptContent(scriptField)
+	if type(scriptField) ~= "string" then return nil, "script not a string" end
+	local trimmed = scriptField:match("^%s*(.-)%s*$") or scriptField
+	if trimmed:match("^https?://") then
+		local ok, res = pcall(function() return game:HttpGet(trimmed) end)
+		if not ok then return nil, res end
+		return res
+	else
+		-- treat as inline code
+		return trimmed
+	end
+end
 
 -- stop all active toggles when gui is destroyed
 gui.Destroying:Connect(function()
@@ -257,24 +241,32 @@ gui.Destroying:Connect(function()
 	end
 end)
 
--- helper functions to start/stop a toggle for a slot
+--------------------------------------------------
+-- START / STOP TOGGLE HELPERS
+--------------------------------------------------
 local function startToggleForSlot(data, slot, outline)
 	if activeToggles[data.Name] then return end
 
-	local ok, ret = pcall(function()
-		local s = game:HttpGet(data.Script)
-		local f, loadErr = loadstring(s)
-		if not f then error(loadErr) end
-		return f()
-	end)
-
-	if not ok then
-		warn("[ZenoX] Error executing toggle script for "..tostring(data.Name)..": "..tostring(ret))
-		-- don't enable visuals if error
+	-- fetch script (url or inline)
+	local content, fetchErr = fetchScriptContent(data.Script)
+	if not content then
+		warn("[ZenoX] failed to fetch script for "..tostring(data.Name)..": "..tostring(fetchErr))
 		return
 	end
 
-	-- detect cleanup function or methods
+	local f, loadErr = loadstring(content)
+	if not f then
+		warn("[ZenoX] loadstring error for "..tostring(data.Name)..": "..tostring(loadErr))
+		return
+	end
+
+	local ok, ret = pcall(f)
+	if not ok then
+		warn("[ZenoX] error executing toggle script for "..tostring(data.Name)..": "..tostring(ret))
+		return
+	end
+
+	-- find cleanup
 	local cleanup
 	if type(ret) == "function" then
 		cleanup = ret
@@ -290,26 +282,34 @@ local function startToggleForSlot(data, slot, outline)
 
 	activeToggles[data.Name] = { cleanup = cleanup, pulsing = true }
 
-	-- visual enable: whole-slot outline (white)
-	outline.Color = Color3.new(1,1,1)
-	outline.Enabled = true
+	-- enable outline (white) and pulse
+	if outline then
+		outline.Color = Color3.new(1,1,1)
+		outline.Enabled = true
+		outline.ZIndex = 10
+		outline.Thickness = 3
 
-	-- simple pulsing outline (tween thickness)
-	outline.Thickness = 3
-	task.spawn(function()
-		while activeToggles[data.Name] and activeToggles[data.Name].pulsing do
-			local t1 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 6})
-			t1:Play()
-			task.wait(0.45)
-			local t2 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3})
-			t2:Play()
-			task.wait(0.45)
-		end
-		-- ensure thickness resets when pulsing stops
-		if outline and outline.Parent then
-			outline.Thickness = 3
-		end
-	end)
+		task.spawn(function()
+			while activeToggles[data.Name] and activeToggles[data.Name].pulsing do
+				if outline and outline.Parent then
+					local t1 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 6})
+					t1:Play()
+					task.wait(0.45)
+					local t2 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3})
+					t2:Play()
+					task.wait(0.45)
+				else
+					break
+				end
+			end
+			-- reset
+			if outline and outline.Parent then
+				outline.Thickness = 3
+			end
+		end)
+	end
+
+	print("[ZenoX] Toggle started:", data.Name, "cleanup:", tostring(cleanup ~= nil))
 end
 
 local function stopToggleForSlot(data, slot, outline)
@@ -320,16 +320,18 @@ local function stopToggleForSlot(data, slot, outline)
 		pcall(entry.cleanup)
 	end
 	activeToggles[data.Name] = nil
+
 	-- visual disable
 	if outline then
 		outline.Enabled = false
 	end
+
+	print("[ZenoX] Toggle stopped:", data.Name)
 end
 
----
-
+--------------------------------------------------
 -- CREATE TAB
-
+--------------------------------------------------
 function ZenoXHub:createTab(name)
 	if pages[name] then return end
 
@@ -339,7 +341,7 @@ function ZenoXHub:createTab(name)
 	btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
 	btn.TextColor3 = Color3.new(1,1,1)
 	btn.Parent = tabScroll
-	Instance.new("UICorner",btn).CornerRadius = UDim.new(0,8)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
 	local g = Instance.new("UIGradient")
 	g.Color = ColorSequence.new{
@@ -365,53 +367,38 @@ function ZenoXHub:createTab(name)
 	grid.Parent = page
 
 	grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		page.CanvasSize = UDim2.new(0,0,0,grid.AbsoluteContentSize.Y+10)
+		page.CanvasSize = UDim2.new(0,0,0,grid.AbsoluteContentSize.Y + 10)
 	end)
 
 	btn.MouseButton1Click:Connect(function()
 		clickSound:Play()
-
 		activeLabel.Visible = false
-
-		for _,p in pairs(pages) do
-			p.Visible=false
-		end
-
-		page.Visible=true
-
-		TweenService:Create(
-			highlight,
-			TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),
-			{Position = btn.Position}
-		):Play()
+		for _, p in pairs(pages) do p.Visible = false end
+		page.Visible = true
+		TweenService:Create(highlight, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = btn.Position}):Play()
 	end)
 
 	pages[name] = page
-	tabScroll.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 20,0,0)
+	tabScroll.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 20, 0, 0)
 end
 
----
-
--- DEFAULT TAB
-
+-- default
 ZenoXHub:createTab("Favorites ⭐")
 
----
-
+--------------------------------------------------
 -- CREATE SLOT
-
+--------------------------------------------------
 function ZenoXHub:createSlot(data)
 	if not pages[data.Tab] then self:createTab(data.Tab) end
 
 	local function buildSlot(parent)
-
 		local slot = Instance.new("TextButton")
 		slot.Size = UDim2.new(0,90,0,90)
 		slot.BackgroundColor3 = Color3.fromRGB(40,40,40)
 		slot.Text = ""
 		slot.Name = data.Name
 		slot.Parent = parent
-		Instance.new("UICorner",slot).CornerRadius = UDim.new(0,8)
+		Instance.new("UICorner", slot).CornerRadius = UDim.new(0,8)
 
 		local sg = Instance.new("UIGradient")
 		sg.Color = ColorSequence.new{
@@ -426,7 +413,13 @@ function ZenoXHub:createSlot(data)
 		icon.Size = UDim2.new(0,60,0,60)
 		icon.Position = UDim2.new(0.5,-30,0,5)
 		icon.BackgroundTransparency = 1
-		icon.Image = "rbxassetid://"..data.Icon
+		-- allow Icon to be either rbxassetid number or plain number
+		if type(data.Icon) == "number" or tostring(data.Icon):match("^%d+$") then
+			icon.Image = "rbxassetid://"..tostring(data.Icon)
+		else
+			-- if not a numeric id, try to use string directly (or a fallback)
+			pcall(function() icon.Image = tostring(data.Icon) end)
+		end
 		icon.Parent = slot
 
 		local text = Instance.new("TextLabel")
@@ -439,7 +432,7 @@ function ZenoXHub:createSlot(data)
 		text.TextSize = 14
 		text.Parent = slot
 
-		-- favorite star (existing)
+		-- favorite star
 		local star = Instance.new("TextButton")
 		star.Name = "FavStar"
 		star.Text = favorites[data.Name] and "★" or "☆"
@@ -448,52 +441,61 @@ function ZenoXHub:createSlot(data)
 		star.BackgroundTransparency = 1
 		star.TextColor3 = favorites[data.Name] and Color3.fromRGB(255,221,0) or Color3.fromRGB(150,150,150)
 		star.Parent = slot
+		star.ZIndex = 11 -- make sure star receives clicks over outline
 
-		-- outline stroke for visual when toggled (whole-slot)
+		-- outline stroke (whole-slot)
 		local outline = Instance.new("UIStroke")
 		outline.Thickness = 3
-		outline.Color = Color3.fromRGB(255,170,0) -- default color (won't show until Enabled)
+		outline.Color = Color3.fromRGB(255,170,0)
 		outline.Transparency = 0
 		outline.Parent = slot
 		outline.Enabled = false
+		outline.ZIndex = 10
 
-		-- SLOT CLICK BEHAVIOR:
-		-- If this slot is a Toggle type, clicking the slot toggles start/stop.
-		-- Otherwise it performs Execute/Copy like before.
+		-- make sure slot ZIndex is below stroke so stroke shows
+		slot.ZIndex = 9
 
+		-- click behavior
 		slot.MouseButton1Click:Connect(function()
 			clickSound:Play()
-
-			-- TOGGLE LOGIC (whole-slot becomes the toggle)
+			-- Toggle logic: whole card toggles
 			if data.Logic == "Toggle" then
 				if not activeToggles[data.Name] then
-					-- start toggle
 					startToggleForSlot(data, slot, outline)
 				else
-					-- stop toggle (and de-execute via cleanup)
 					stopToggleForSlot(data, slot, outline)
 				end
 				return
 			end
 
-			-- NON-TOGGLE: Execute or Copy
+			-- Non-toggle actions
 			if data.Logic == "Execute" then
-				pcall(function() loadstring(game:HttpGet(data.Script))() end)
+				-- fetch content then run
+				local content, err = fetchScriptContent(data.Script)
+				if not content then
+					warn("[ZenoX] Execute fetch failed:", err)
+					return
+				end
+				local f, loadErr = loadstring(content)
+				if not f then
+					warn("[ZenoX] Execute loadstring error:", loadErr)
+					return
+				end
+				pcall(f)
 			elseif data.Logic == "Copy" then
-				setclipboard(data.Script)
+				pcall(function() setclipboard(data.Script) end)
 			end
 		end)
 
-		-- favorite toggle (unchanged behavior but now uses named child for updates)
+		-- favorite star behavior
 		star.MouseButton1Click:Connect(function()
 			clickSound:Play()
-
 			favorites[data.Name] = not favorites[data.Name]
 			saveFavorites()
 
-			-- update ALL stars for this slot across pages
-			for _,page in pairs(pages) do
-				for _,slotChild in pairs(page:GetChildren()) do
+			-- update all stars for this slot across pages
+			for _, p in pairs(pages) do
+				for _, slotChild in pairs(p:GetChildren()) do
 					if slotChild:IsA("TextButton") and slotChild.Name == data.Name then
 						local s = slotChild:FindFirstChild("FavStar")
 						if s then
@@ -505,57 +507,52 @@ function ZenoXHub:createSlot(data)
 			end
 
 			-- remove old favorite entry in Favorites tab
-			for _,v in pairs(pages["Favorites ⭐"]:GetChildren()) do
+			for _, v in pairs(pages["Favorites ⭐"]:GetChildren()) do
 				if v:IsA("TextButton") and v.Name == data.Name then
 					v:Destroy()
 				end
 			end
 
-			-- add new favorite (if toggled on)
+			-- add new favorite in Favorites tab
 			if favorites[data.Name] then
 				buildSlot(pages["Favorites ⭐"])
 			end
-
 		end)
 
-		-- auto-visual: if script was already active before creating UI, show outline
+		-- show outline if active already
 		if activeToggles[data.Name] then
 			outline.Color = Color3.new(1,1,1)
 			outline.Enabled = true
 		end
+	end -- buildSlot
 
-	end -- CLOSE buildSlot
-
-	-- auto load favorite
+	-- add to favorites tab if necessary (buildSlot available here)
 	if favorites[data.Name] then
 		buildSlot(pages["Favorites ⭐"])
 	end
 
-	table.insert(allSlots,data)
+	table.insert(allSlots, data)
 	buildSlot(pages[data.Tab])
-
 end
 
----
-
+--------------------------------------------------
 -- SEARCH
-
+--------------------------------------------------
 search:GetPropertyChangedSignal("Text"):Connect(function()
-	local txt = string.lower(search.Text)
-	for _,page in pairs(pages) do
-		for _,slot in pairs(page:GetChildren()) do
+	local txt = string.lower(search.Text or "")
+	for _, page in pairs(pages) do
+		for _, slot in pairs(page:GetChildren()) do
 			if slot:IsA("TextButton") then
-				slot.Visible = string.find(string.lower(slot.Name), txt) ~= nil
+				slot.Visible = txt == "" or string.find(string.lower(slot.Name or ""), txt) ~= nil
 			end
 		end
 	end
 end)
 
----
-
+--------------------------------------------------
 -- KEYBIND
-
-UserInputService.InputBegan:Connect(function(input,gpe)
+--------------------------------------------------
+UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.KeyCode == Enum.KeyCode.I then
 		clickSound:Play()
