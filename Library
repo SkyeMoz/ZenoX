@@ -1,4 +1,4 @@
--- Full updated ZenoXHub script with toggle/outline logic
+-- Full updated ZenoXHub script with toggle/outline logic (modified)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -258,7 +258,7 @@ gui.Destroying:Connect(function()
 end)
 
 -- helper functions to start/stop a toggle for a slot
-local function startToggleForSlot(data, toggleBtn, slot, outline)
+local function startToggleForSlot(data, slot, outline)
 	if activeToggles[data.Name] then return end
 
 	local ok, ret = pcall(function()
@@ -290,25 +290,29 @@ local function startToggleForSlot(data, toggleBtn, slot, outline)
 
 	activeToggles[data.Name] = { cleanup = cleanup, pulsing = true }
 
-	-- visual enable
-	toggleBtn.Text = "●"
+	-- visual enable: whole-slot outline (white)
+	outline.Color = Color3.new(1,1,1)
 	outline.Enabled = true
 
 	-- simple pulsing outline (tween thickness)
 	outline.Thickness = 3
 	task.spawn(function()
 		while activeToggles[data.Name] and activeToggles[data.Name].pulsing do
-			local t1 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 7})
+			local t1 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 6})
 			t1:Play()
 			task.wait(0.45)
 			local t2 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3})
 			t2:Play()
 			task.wait(0.45)
 		end
+		-- ensure thickness resets when pulsing stops
+		if outline and outline.Parent then
+			outline.Thickness = 3
+		end
 	end)
 end
 
-local function stopToggleForSlot(data, toggleBtn, slot, outline)
+local function stopToggleForSlot(data, slot, outline)
 	local entry = activeToggles[data.Name]
 	if not entry then return end
 	entry.pulsing = false
@@ -316,8 +320,10 @@ local function stopToggleForSlot(data, toggleBtn, slot, outline)
 		pcall(entry.cleanup)
 	end
 	activeToggles[data.Name] = nil
-	toggleBtn.Text = "◯"
-	outline.Enabled = false
+	-- visual disable
+	if outline then
+		outline.Enabled = false
+	end
 end
 
 ---
@@ -435,6 +441,7 @@ function ZenoXHub:createSlot(data)
 
 		-- favorite star (existing)
 		local star = Instance.new("TextButton")
+		star.Name = "FavStar"
 		star.Text = favorites[data.Name] and "★" or "☆"
 		star.Size = UDim2.new(0,18,0,18)
 		star.Position = UDim2.new(1,-20,0,2)
@@ -442,28 +449,34 @@ function ZenoXHub:createSlot(data)
 		star.TextColor3 = favorites[data.Name] and Color3.fromRGB(255,221,0) or Color3.fromRGB(150,150,150)
 		star.Parent = slot
 
-		-- toggle button (new)
-		local toggleBtn = Instance.new("TextButton")
-		toggleBtn.Size = UDim2.new(0,18,0,18)
-		toggleBtn.Position = UDim2.new(0,2,1,-20)
-		toggleBtn.BackgroundTransparency = 0.5
-		toggleBtn.Text = "◯"
-		toggleBtn.Font = Enum.Font.Gotham
-		toggleBtn.TextSize = 12
-		toggleBtn.Parent = slot
-		Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(1,0)
-
-		-- outline stroke for visual when toggled
+		-- outline stroke for visual when toggled (whole-slot)
 		local outline = Instance.new("UIStroke")
 		outline.Thickness = 3
-		outline.Color = Color3.fromRGB(255,170,0)
+		outline.Color = Color3.fromRGB(255,170,0) -- default color (won't show until Enabled)
 		outline.Transparency = 0
 		outline.Parent = slot
 		outline.Enabled = false
 
-		-- main slot click: execute or copy (unchanged behavior)
+		-- SLOT CLICK BEHAVIOR:
+		-- If this slot is a Toggle type, clicking the slot toggles start/stop.
+		-- Otherwise it performs Execute/Copy like before.
+
 		slot.MouseButton1Click:Connect(function()
 			clickSound:Play()
+
+			-- TOGGLE LOGIC (whole-slot becomes the toggle)
+			if data.Logic == "Toggle" then
+				if not activeToggles[data.Name] then
+					-- start toggle
+					startToggleForSlot(data, slot, outline)
+				else
+					-- stop toggle (and de-execute via cleanup)
+					stopToggleForSlot(data, slot, outline)
+				end
+				return
+			end
+
+			-- NON-TOGGLE: Execute or Copy
 			if data.Logic == "Execute" then
 				pcall(function() loadstring(game:HttpGet(data.Script))() end)
 			elseif data.Logic == "Copy" then
@@ -471,18 +484,18 @@ function ZenoXHub:createSlot(data)
 			end
 		end)
 
-		-- favorite toggle (unchanged)
+		-- favorite toggle (unchanged behavior but now uses named child for updates)
 		star.MouseButton1Click:Connect(function()
 			clickSound:Play()
 
 			favorites[data.Name] = not favorites[data.Name]
 			saveFavorites()
 
-			-- update ALL stars for this slot
+			-- update ALL stars for this slot across pages
 			for _,page in pairs(pages) do
 				for _,slotChild in pairs(page:GetChildren()) do
 					if slotChild:IsA("TextButton") and slotChild.Name == data.Name then
-						local s = slotChild:FindFirstChildOfClass("TextButton")
+						local s = slotChild:FindFirstChild("FavStar")
 						if s then
 							s.Text = favorites[data.Name] and "★" or "☆"
 							s.TextColor3 = favorites[data.Name] and Color3.fromRGB(255,221,0) or Color3.fromRGB(150,150,150)
@@ -491,31 +504,25 @@ function ZenoXHub:createSlot(data)
 				end
 			end
 
-			-- remove old favorite
+			-- remove old favorite entry in Favorites tab
 			for _,v in pairs(pages["Favorites ⭐"]:GetChildren()) do
 				if v:IsA("TextButton") and v.Name == data.Name then
 					v:Destroy()
 				end
 			end
 
-			-- add new favorite
+			-- add new favorite (if toggled on)
 			if favorites[data.Name] then
 				buildSlot(pages["Favorites ⭐"])
 			end
 
 		end)
 
-		-- toggle button behavior (new)
-		toggleBtn.MouseButton1Click:Connect(function()
-			clickSound:Play()
-			if not activeToggles[data.Name] then
-				-- start
-				startToggleForSlot(data, toggleBtn, slot, outline)
-			else
-				-- stop
-				stopToggleForSlot(data, toggleBtn, slot, outline)
-			end
-		end)
+		-- auto-visual: if script was already active before creating UI, show outline
+		if activeToggles[data.Name] then
+			outline.Color = Color3.new(1,1,1)
+			outline.Enabled = true
+		end
 
 	end -- CLOSE buildSlot
 
