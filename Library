@@ -1,0 +1,559 @@
+-- Full updated ZenoXHub script with toggle/outline logic
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+---
+
+-- REMOVE OLD GUI (PREVENT DUPLICATE)
+
+if CoreGui:FindFirstChild("ZenoXHub") then
+	CoreGui.ZenoXHub:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ZenoXHub"
+gui.Parent = CoreGui
+
+---
+
+-- FAVORITES SAVE SYSTEM
+
+local favFile = "ZenoXHub_Favorites.json"
+local favorites = {}
+
+pcall(function()
+	if readfile and isfile and isfile(favFile) then
+		favorites = HttpService:JSONDecode(readfile(favFile))
+	end
+end)
+
+local function saveFavorites()
+	pcall(function()
+		if writefile then
+			writefile(favFile, HttpService:JSONEncode(favorites))
+		end
+	end)
+end
+
+---
+
+-- SOUNDS
+
+local clickSound = Instance.new("Sound")
+clickSound.SoundId = "rbxassetid://535716488"
+clickSound.Volume = 1
+clickSound.Parent = gui
+
+local typingSoundTemplate = Instance.new("Sound")
+typingSoundTemplate.SoundId = "rbxassetid://8107411980"
+typingSoundTemplate.Volume = 1
+typingSoundTemplate.Parent = gui
+
+local function playTypingSound()
+	local s = typingSoundTemplate:Clone()
+	s.Parent = gui
+	s:Play()
+	game:GetService("Debris"):AddItem(s,1)
+end
+
+---
+
+-- TOGGLE BUTTON
+
+local toggle = Instance.new("ImageButton")
+toggle.Size = UDim2.new(0,60,0,60)
+toggle.Position = UDim2.new(0,20,0.5,-30)
+toggle.Image = "rbxassetid://14598484193"
+toggle.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggle.BackgroundTransparency = 0.5
+toggle.Parent = gui
+Instance.new("UICorner",toggle).CornerRadius = UDim.new(1,0)
+
+---
+
+-- HOLD 10s DELETE
+
+local holding = false
+
+toggle.MouseButton1Down:Connect(function()
+	holding = true
+	task.spawn(function()
+		local start = tick()
+		while holding do
+			if tick()-start >= 10 then
+				gui:Destroy()
+				break
+			end
+			task.wait()
+		end
+	end)
+end)
+
+toggle.MouseButton1Up:Connect(function()
+	holding = false
+end)
+
+---
+
+-- MAIN GUI
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0,450,0,400)
+main.Position = UDim2.new(0.5,-225,0.5,-200)
+main.BackgroundColor3 = Color3.fromRGB(40,40,40)
+main.BackgroundTransparency = 0
+main.Parent = gui
+Instance.new("UICorner",main).CornerRadius = UDim.new(0,10)
+
+local mainGradient = Instance.new("UIGradient")
+mainGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0,Color3.fromRGB(30,30,30)),
+	ColorSequenceKeypoint.new(0.7,Color3.fromRGB(80,80,80)),
+	ColorSequenceKeypoint.new(1,Color3.fromRGB(180,180,180))
+}
+mainGradient.Rotation = 90
+mainGradient.Parent = main
+
+toggle.MouseButton1Click:Connect(function()
+	clickSound:Play()
+	main.Visible = not main.Visible
+end)
+
+---
+
+-- TITLE
+
+local title = Instance.new("TextLabel")
+title.Text = "ZenoX Menu"
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.Parent = main
+
+---
+
+-- SEARCH LABEL
+
+local searchLabel = Instance.new("TextLabel")
+searchLabel.Text = "Search"
+searchLabel.Size = UDim2.new(1,-20,0,15)
+searchLabel.Position = UDim2.new(0,10,0,40)
+searchLabel.BackgroundTransparency = 1
+searchLabel.TextColor3 = Color3.fromRGB(200,200,200)
+searchLabel.Font = Enum.Font.Gotham
+searchLabel.TextSize = 12
+searchLabel.TextXAlignment = Enum.TextXAlignment.Left
+searchLabel.Parent = main
+
+---
+
+-- SEARCH BOX
+
+local search = Instance.new("TextBox")
+search.Size = UDim2.new(1,-20,0,30)
+search.Position = UDim2.new(0,10,0,55)
+search.PlaceholderText = ""
+search.Text = ""
+search.BackgroundColor3 = Color3.fromRGB(35,35,35)
+search.TextColor3 = Color3.new(1,1,1)
+search.Parent = main
+Instance.new("UICorner",search).CornerRadius = UDim.new(0,6)
+
+search:GetPropertyChangedSignal("Text"):Connect(function()
+	playTypingSound()
+end)
+
+---
+
+-- TAB BAR
+
+local tabScroll = Instance.new("ScrollingFrame")
+tabScroll.Size = UDim2.new(1,-20,0,35)
+tabScroll.Position = UDim2.new(0,10,0,90)
+tabScroll.ScrollingDirection = Enum.ScrollingDirection.X
+tabScroll.CanvasSize = UDim2.new(0,0,0,0)
+tabScroll.ScrollBarThickness = 0
+tabScroll.BackgroundTransparency = 1
+tabScroll.Parent = main
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.Padding = UDim.new(0,5)
+tabLayout.Parent = tabScroll
+
+-- overlay sits on top of the tabScroll area but is a sibling so UIListLayout won't include the highlight in layout
+local tabOverlay = Instance.new("Frame")
+tabOverlay.Size = tabScroll.Size
+tabOverlay.Position = tabScroll.Position
+tabOverlay.BackgroundTransparency = 1
+tabOverlay.Parent = main
+tabOverlay.ZIndex = 0
+tabScroll.ZIndex = 1
+
+---
+
+-- TAB HIGHLIGHT SLIDER (parented to overlay so layout doesn't reserve space)
+
+local highlight = Instance.new("Frame")
+highlight.Size = UDim2.new(0,110,1,0)
+highlight.BackgroundTransparency = 0
+highlight.Parent = tabOverlay
+highlight.ZIndex = 0
+Instance.new("UICorner",highlight)
+
+local hGradient = Instance.new("UIGradient")
+hGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0,Color3.fromRGB(255,170,0)),
+	ColorSequenceKeypoint.new(1,Color3.fromRGB(255,90,0))
+}
+hGradient.Parent = highlight
+
+---
+
+-- CONTENT HOLDER
+
+local holder = Instance.new("Frame")
+holder.Size = UDim2.new(1,-20,1,-140)
+holder.Position = UDim2.new(0,10,0,125)
+holder.BackgroundTransparency = 1
+holder.Parent = main
+
+-- EMPTY MENU TEXT
+local activeLabel = Instance.new("TextLabel")
+activeLabel.Size = UDim2.new(1,0,1,0)
+activeLabel.BackgroundTransparency = 1
+activeLabel.Text = "🟢 Active Service"
+activeLabel.TextColor3 = Color3.fromRGB(0,255,100)
+activeLabel.Font = Enum.Font.GothamBold
+activeLabel.TextSize = 26
+activeLabel.TextXAlignment = Enum.TextXAlignment.Center
+activeLabel.TextYAlignment = Enum.TextYAlignment.Center
+activeLabel.Parent = holder
+
+---
+
+-- STORAGE
+
+local ZenoXHub = {}
+local pages = {}
+local allSlots = {}
+
+-- ACTIVE TOGGLES (tracks running scripts + pulse)
+local activeToggles = {}
+
+-- stop all active toggles when gui is destroyed
+gui.Destroying:Connect(function()
+	for name,entry in pairs(activeToggles) do
+		if entry and entry.cleanup then
+			pcall(entry.cleanup)
+		end
+		activeToggles[name] = nil
+	end
+end)
+
+-- helper functions to start/stop a toggle for a slot
+local function startToggleForSlot(data, toggleBtn, slot, outline)
+	if activeToggles[data.Name] then return end
+
+	local ok, ret = pcall(function()
+		local s = game:HttpGet(data.Script)
+		local f, loadErr = loadstring(s)
+		if not f then error(loadErr) end
+		return f()
+	end)
+
+	if not ok then
+		warn("[ZenoX] Error executing toggle script for "..tostring(data.Name)..": "..tostring(ret))
+		-- don't enable visuals if error
+		return
+	end
+
+	-- detect cleanup function or methods
+	local cleanup
+	if type(ret) == "function" then
+		cleanup = ret
+	elseif type(ret) == "table" then
+		if type(ret.Stop) == "function" then
+			cleanup = ret.Stop
+		elseif type(ret.cleanup) == "function" then
+			cleanup = ret.cleanup
+		elseif type(ret.disconnect) == "function" then
+			cleanup = ret.disconnect
+		end
+	end
+
+	activeToggles[data.Name] = { cleanup = cleanup, pulsing = true }
+
+	-- visual enable
+	toggleBtn.Text = "●"
+	outline.Enabled = true
+
+	-- simple pulsing outline (tween thickness)
+	outline.Thickness = 3
+	task.spawn(function()
+		while activeToggles[data.Name] and activeToggles[data.Name].pulsing do
+			local t1 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 7})
+			t1:Play()
+			task.wait(0.45)
+			local t2 = TweenService:Create(outline, TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3})
+			t2:Play()
+			task.wait(0.45)
+		end
+	end)
+end
+
+local function stopToggleForSlot(data, toggleBtn, slot, outline)
+	local entry = activeToggles[data.Name]
+	if not entry then return end
+	entry.pulsing = false
+	if entry.cleanup then
+		pcall(entry.cleanup)
+	end
+	activeToggles[data.Name] = nil
+	toggleBtn.Text = "◯"
+	outline.Enabled = false
+end
+
+---
+
+-- CREATE TAB
+
+function ZenoXHub:createTab(name)
+	if pages[name] then return end
+
+	local btn = Instance.new("TextButton")
+	btn.Text = name
+	btn.Size = UDim2.new(0,110,1,0)
+	btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Parent = tabScroll
+	Instance.new("UICorner",btn).CornerRadius = UDim.new(0,8)
+
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0,Color3.fromRGB(25,25,25)),
+		ColorSequenceKeypoint.new(0.7,Color3.fromRGB(80,80,80)),
+		ColorSequenceKeypoint.new(1,Color3.fromRGB(170,170,170))
+	}
+	g.Rotation = 90
+	g.Parent = btn
+
+	local page = Instance.new("ScrollingFrame")
+	page.Size = UDim2.new(1,0,1,0)
+	page.CanvasSize = UDim2.new(0,0,0,0)
+	page.ScrollBarThickness = 6
+	page.ScrollBarImageColor3 = Color3.fromRGB(200,200,200)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.Parent = holder
+
+	local grid = Instance.new("UIGridLayout")
+	grid.CellSize = UDim2.new(0,90,0,90)
+	grid.CellPadding = UDim2.new(0,6,0,6)
+	grid.Parent = page
+
+	grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		page.CanvasSize = UDim2.new(0,0,0,grid.AbsoluteContentSize.Y+10)
+	end)
+
+	btn.MouseButton1Click:Connect(function()
+		clickSound:Play()
+
+		activeLabel.Visible = false
+
+		for _,p in pairs(pages) do
+			p.Visible=false
+		end
+
+		page.Visible=true
+
+		TweenService:Create(
+			highlight,
+			TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),
+			{Position = btn.Position}
+		):Play()
+	end)
+
+	pages[name] = page
+	tabScroll.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 20,0,0)
+end
+
+---
+
+-- DEFAULT TAB
+
+ZenoXHub:createTab("Favorites ⭐")
+
+---
+
+-- CREATE SLOT
+
+function ZenoXHub:createSlot(data)
+	if not pages[data.Tab] then self:createTab(data.Tab) end
+
+	local function buildSlot(parent)
+
+		local slot = Instance.new("TextButton")
+		slot.Size = UDim2.new(0,90,0,90)
+		slot.BackgroundColor3 = Color3.fromRGB(40,40,40)
+		slot.Text = ""
+		slot.Name = data.Name
+		slot.Parent = parent
+		Instance.new("UICorner",slot).CornerRadius = UDim.new(0,8)
+
+		local sg = Instance.new("UIGradient")
+		sg.Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0,Color3.fromRGB(25,25,25)),
+			ColorSequenceKeypoint.new(0.7,Color3.fromRGB(90,90,90)),
+			ColorSequenceKeypoint.new(1,Color3.fromRGB(180,180,180))
+		}
+		sg.Rotation = 90
+		sg.Parent = slot
+
+		local icon = Instance.new("ImageLabel")
+		icon.Size = UDim2.new(0,60,0,60)
+		icon.Position = UDim2.new(0.5,-30,0,5)
+		icon.BackgroundTransparency = 1
+		icon.Image = "rbxassetid://"..data.Icon
+		icon.Parent = slot
+
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.new(1,0,0,20)
+		text.Position = UDim2.new(0,0,1,-20)
+		text.BackgroundTransparency = 1
+		text.Text = data.Name
+		text.TextColor3 = Color3.new(1,1,1)
+		text.Font = Enum.Font.Gotham
+		text.TextSize = 14
+		text.Parent = slot
+
+		-- favorite star (existing)
+		local star = Instance.new("TextButton")
+		star.Text = favorites[data.Name] and "★" or "☆"
+		star.Size = UDim2.new(0,18,0,18)
+		star.Position = UDim2.new(1,-20,0,2)
+		star.BackgroundTransparency = 1
+		star.TextColor3 = favorites[data.Name] and Color3.fromRGB(255,221,0) or Color3.fromRGB(150,150,150)
+		star.Parent = slot
+
+		-- toggle button (new)
+		local toggleBtn = Instance.new("TextButton")
+		toggleBtn.Size = UDim2.new(0,18,0,18)
+		toggleBtn.Position = UDim2.new(0,2,1,-20)
+		toggleBtn.BackgroundTransparency = 0.5
+		toggleBtn.Text = "◯"
+		toggleBtn.Font = Enum.Font.Gotham
+		toggleBtn.TextSize = 12
+		toggleBtn.Parent = slot
+		Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(1,0)
+
+		-- outline stroke for visual when toggled
+		local outline = Instance.new("UIStroke")
+		outline.Thickness = 3
+		outline.Color = Color3.fromRGB(255,170,0)
+		outline.Transparency = 0
+		outline.Parent = slot
+		outline.Enabled = false
+
+		-- main slot click: execute or copy (unchanged behavior)
+		slot.MouseButton1Click:Connect(function()
+			clickSound:Play()
+			if data.Logic == "Execute" then
+				pcall(function() loadstring(game:HttpGet(data.Script))() end)
+			elseif data.Logic == "Copy" then
+				setclipboard(data.Script)
+			end
+		end)
+
+		-- favorite toggle (unchanged)
+		star.MouseButton1Click:Connect(function()
+			clickSound:Play()
+
+			favorites[data.Name] = not favorites[data.Name]
+			saveFavorites()
+
+			-- update ALL stars for this slot
+			for _,page in pairs(pages) do
+				for _,slotChild in pairs(page:GetChildren()) do
+					if slotChild:IsA("TextButton") and slotChild.Name == data.Name then
+						local s = slotChild:FindFirstChildOfClass("TextButton")
+						if s then
+							s.Text = favorites[data.Name] and "★" or "☆"
+							s.TextColor3 = favorites[data.Name] and Color3.fromRGB(255,221,0) or Color3.fromRGB(150,150,150)
+						end
+					end
+				end
+			end
+
+			-- remove old favorite
+			for _,v in pairs(pages["Favorites ⭐"]:GetChildren()) do
+				if v:IsA("TextButton") and v.Name == data.Name then
+					v:Destroy()
+				end
+			end
+
+			-- add new favorite
+			if favorites[data.Name] then
+				buildSlot(pages["Favorites ⭐"])
+			end
+
+		end)
+
+		-- toggle button behavior (new)
+		toggleBtn.MouseButton1Click:Connect(function()
+			clickSound:Play()
+			if not activeToggles[data.Name] then
+				-- start
+				startToggleForSlot(data, toggleBtn, slot, outline)
+			else
+				-- stop
+				stopToggleForSlot(data, toggleBtn, slot, outline)
+			end
+		end)
+
+	end -- CLOSE buildSlot
+
+	-- auto load favorite
+	if favorites[data.Name] then
+		buildSlot(pages["Favorites ⭐"])
+	end
+
+	table.insert(allSlots,data)
+	buildSlot(pages[data.Tab])
+
+end
+
+---
+
+-- SEARCH
+
+search:GetPropertyChangedSignal("Text"):Connect(function()
+	local txt = string.lower(search.Text)
+	for _,page in pairs(pages) do
+		for _,slot in pairs(page:GetChildren()) do
+			if slot:IsA("TextButton") then
+				slot.Visible = string.find(string.lower(slot.Name), txt) ~= nil
+			end
+		end
+	end
+end)
+
+---
+
+-- KEYBIND
+
+UserInputService.InputBegan:Connect(function(input,gpe)
+	if gpe then return end
+	if input.KeyCode == Enum.KeyCode.I then
+		clickSound:Play()
+		main.Visible = not main.Visible
+	end
+end)
+
+return ZenoXHub
